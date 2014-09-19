@@ -1,0 +1,146 @@
+#! /usr/bin/env Rscript
+
+## Parse command line arguments if present
+args = commandArgs(TRUE)
+
+if (is.na(args[1])) {
+    root = "~/media/Television"
+} else {
+    root = args[1]
+}
+
+## Regexp that matches video files
+videoRegex = ".+\\.flv|mov|mp4|wmv|mkv|mov|avi|mpg|swf"
+
+## Read in the files from the specified root directory
+d = list.files(root, videoRegex,
+    recursive=TRUE, full.names=T)
+
+displayFiles <- function(flist) {
+    ## File names (without full path)
+    fnames = basename(flist)
+
+    ## Displays a list of files in pretty fashion
+    system("clear")
+    cat("-------------------------------------",
+        "-----------------------------\n",
+        sprintf("%s\t%s\n", "Item", "Title"),
+        "-------------------------------------",
+        "-----------------------------\n", sep="")
+    for (i in 1:length(fnames)) {
+        cat(sprintf("%02d\t%s\n", i, fnames[i]))
+    }
+}
+
+handleResp <- function(resp, startIdx, maxFiles) {
+    ## Manages user input and calls the appropriate function
+
+    ## Initial letter/number of resp determines behavior
+    initialResp = substr(resp, 1, 1)
+
+    ## If the resp is just a number, play the corresponding video
+    if (length(grep("[[:digit:]]", initialResp)) == 1) {
+        ## Play corresponding video and wait for it to return
+        vidChoice = as.numeric(resp) + (startIdx - 1)
+        cat(sprintf("Playing %s...", basename(d[vidChoice])))
+        system(paste("mplayer -really-quiet",
+                     shQuote(d[vidChoice]),
+                     sep=" "),
+               wait=T, ignore.stdout = TRUE,
+               ignore.stderr = TRUE) 
+
+        ## Return the original startIdx (which means the browser will
+        ## simply return to its previous state after the video has
+        ## finished playing)
+        return(startIdx)
+    }
+
+    ## The user could have asked to see the next page of videos
+    if (tolower(initialResp) == "n") {
+        ## Return index of the next page of results
+        return(startIdx + maxFiles)
+    } else if (tolower(initialResp) == "p") {
+        ## The user has asked to see the previous page of videos
+        return(startIdx - maxFiles)
+    } else if (tolower(initialResp) == "q") {
+        ## The user wants to quit
+        return(0)
+    }
+}
+
+fileBrowser <- function(d) {
+    ## Controls how many files are displayed at a time, and acts as a
+    ## dispatcher for different functionality, including the playback
+    ## and deletion of videos.
+    browsep = TRUE
+    ## The starting video index in the browser window. This is used to
+    ## display a subset of a very long list of videos
+    startIdx = 1
+    ## How many files to display onscreen at once
+    maxFiles = 15
+    numVideos = length(d)
+
+    ## Given the number of files per page, what is the total pages of
+    ## results possible?
+    maxPage = ceiling(numVideos / maxFiles)
+    
+    while (browsep) {
+        ## Double check that our indexes are not out of range
+        if (startIdx < 1) {startIdx = 1}
+        endIdx = startIdx + (maxFiles - 1)
+        if (endIdx > numVideos) {endIdx = numVideos}
+
+        ## Determine current page number
+        if (startIdx == 1) {
+            currPage = 1
+        } else {
+            currPage = (startIdx + (maxFiles - 1)) / maxFiles
+        }
+        
+        ## Display the current page of results
+        displayFiles(d[startIdx:endIdx])
+
+        ## Get user input with custom prompt
+        cat(sprintf("\nItem # to play\t\t\t\t Page %d/%d\n",
+                    currPage, maxPage))
+        if (endIdx < numVideos & startIdx > 1) {
+            cat("[n]ext or p]revious page\n")
+        } else if (endIdx < numVideos) {
+            cat("[n]ext page\n")
+        } else if (startIdx > 1) {
+            cat("[p]revious page\n")
+        } 
+        cat(">> ")
+        
+        resp = readLines(file("stdin"), 1)
+        newStartIdx = handleResp(resp, startIdx, maxFiles)
+
+        ## If handleResp returned zero, the user has asked to quit.
+        if (newStartIdx == 0) {
+            browsep = FALSE
+        }
+
+        ## Reset the index for the current page of results
+        if (newStartIdx < numVideos) {
+            startIdx = newStartIdx
+        }
+            
+    }
+    ## We're done
+
+} 
+
+## ## Print file names
+## displayFiles(fnames)
+
+## ## Get user response
+## cat("Which video: ")
+## resp = as.numeric(readLines(file("stdin"), 1))
+
+## ## Play corresponding video asynchronously
+## system(paste("mplayer", shQuote(d[resp]), sep=" "), wait=F)
+
+fileBrowser(d)
+system("clear")
+
+## End of file m
