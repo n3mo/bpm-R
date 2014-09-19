@@ -17,7 +17,7 @@ getFileData <- function(root) {
     ## or file extension info)
 
     ## Regexp that matches video files
-    videoRegex = ".+\\.flv|mov|mp4|wmv|mkv|mov|avi|mpg|swf"
+    videoRegex = ".+\\.flv$|mov$|mp4$|wmv$|mkv$|mov$|avi$|mpg$|swf$"
 
     ## Read in the files from the specified root directory
     filePath = list.files(root, videoRegex,
@@ -75,40 +75,65 @@ displayFiles <- function(flist) {
     }
 }
 
-handleResp <- function(d, resp, startIdx, maxFiles) {
+handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
     ## Manages user input and calls the appropriate function
 
-    ## Initial letter/number of resp determines behavior
-    initialResp = substr(resp, 1, 1)
+    ## Try to handle the user's unpredictable input
+    tryCatch(
+        {
+            ## Initial letter/number of resp determines behavior
+            initialResp = substr(resp, 1, 1)
 
-    ## If the resp is just a number, play the corresponding video
-    if (length(grep("[[:digit:]]", initialResp)) == 1) {
-        ## Play corresponding video and wait for it to return
-        vidChoice = as.numeric(resp) + (startIdx - 1)
-        cat(sprintf("Playing %s...", d$fileName[vidChoice]))
-        system(paste("mplayer -really-quiet",
-                     shQuote(d$filePath[vidChoice]),
-                     sep=" "),
-               wait=T, ignore.stdout = TRUE,
-               ignore.stderr = TRUE) 
+            ## If the resp is just a number, play the corresponding video
+            if (length(grep("[[:digit:]]", initialResp)) == 1) {
+                ## Play corresponding video and wait for it to return
+                respAsNum = as.numeric(resp)
+                vidChoice = respAsNum + (startIdx - 1)
 
-        ## Return the original startIdx (which means the browser will
-        ## simply return to its previous state after the video has
-        ## finished playing)
-        return(startIdx)
-    }
+                ## Only allow reasonable item numbers
+                if (respAsNum <1 | respAsNum > maxItem) {
+                    ## Do nothing... the user has asked for an illegal
+                    ## item number
+                    return(startIdx)
+                } 
 
-    ## The user could have asked to see the next page of videos
-    if (tolower(initialResp) == "n") {
-        ## Return index of the next page of results
-        return(startIdx + maxFiles)
-    } else if (tolower(initialResp) == "p") {
-        ## The user has asked to see the previous page of videos
-        return(startIdx - maxFiles)
-    } else if (tolower(initialResp) == "q") {
-        ## The user wants to quit
-        return(0)
-    }
+                cat(sprintf("Playing %s...", d$fileName[vidChoice]))
+                system(paste("mplayer -really-quiet",
+                             shQuote(d$filePath[vidChoice]),
+                             sep=" "),
+                       wait=T, ignore.stdout = TRUE,
+                       ignore.stderr = TRUE) 
+
+                ## Return the original startIdx (which means the browser will
+                ## simply return to its previous state after the video has
+                ## finished playing)
+                return(startIdx)
+            }
+
+            ## The user could have asked to see the next page of videos
+            if (tolower(initialResp) == "n") {
+                ## Return index of the next page of results
+                return(startIdx + maxFiles)
+            } else if (tolower(initialResp) == "p") {
+                ## The user has asked to see the previous page of videos
+                return(startIdx - maxFiles)
+            } else if (tolower(initialResp) == "q") {
+                ## The user wants to quit
+                return(0)
+            } else if (tolower(initialResp) == "t") {
+                ## Return to the top page of results
+                return(1)
+            } else {
+                ## The response is illegal. If it didn't cause an
+                ## error, we just return the current state of things
+                return(startIdx)
+            }
+            
+        },
+        error = function(e) {
+            cat('Unknown Command!\n')
+        })
+    return(startIdx)
 }
 
 fileBrowser <- function(d) {
@@ -142,12 +167,19 @@ fileBrowser <- function(d) {
         
         ## Display the current page of results
         displayFiles(d[startIdx:endIdx,])
+        ## For the current page, maxItem is the maximum allowable item
+        ## number response
+        maxItem = dim(d[startIdx:endIdx,])[1]
+        ## If the final page of results has less entries than
+        ## maxFiles, then we pad with extra blank lines so that the
+        ## user doesn't experience the input prompt moving around
+        cat(paste(rep("\n", (maxFiles - maxItem)), collapse=""))
 
         ## Get user input with custom prompt
-        cat(sprintf("\nItem # to play\t\t\t\t Page %d/%d\n",
+        cat(sprintf("\nItem # to play\t\t\t\t\t\t Page %d/%d\n",
                     currPage, maxPage))
         if (endIdx < numVideos & startIdx > 1) {
-            cat("[n]ext or p]revious page\n")
+            cat("[n]ext or [p]revious page\n")
         } else if (endIdx < numVideos) {
             cat("[n]ext page\n")
         } else if (startIdx > 1) {
@@ -156,7 +188,7 @@ fileBrowser <- function(d) {
         cat(">> ")
         
         resp = readLines(file("stdin"), 1)
-        newStartIdx = handleResp(d, resp, startIdx, maxFiles)
+        newStartIdx = handleResp(d, resp, startIdx, maxFiles, maxItem) 
 
         ## If handleResp returned zero, the user has asked to quit.
         if (newStartIdx == 0) {
