@@ -1,6 +1,6 @@
 #! /usr/bin/env Rscript
 
-currVer = "v0.1.1"
+currVer = "v0.1.2"
 
 ## Parse command line arguments if present
 args = commandArgs(TRUE)
@@ -11,12 +11,25 @@ if (is.na(args[1])) {
     root = args[1]
 }
 
-## Regexp that matches video files
-videoRegex = ".+\\.flv|mov|mp4|wmv|mkv|mov|avi|mpg|swf"
+getFileData <- function(root) {
+    ## Recursively search root directory for video files and return a
+    ## data frame containing file paths and file names (without path
+    ## or file extension info)
 
-## Read in the files from the specified root directory
-d = list.files(root, videoRegex,
-    recursive=TRUE, full.names=T)
+    ## Regexp that matches video files
+    videoRegex = ".+\\.flv|mov|mp4|wmv|mkv|mov|avi|mpg|swf"
+
+    ## Read in the files from the specified root directory
+    filePath = list.files(root, videoRegex,
+        recursive=TRUE, full.names=T)
+
+    ## File names (with path or extension)
+    fileName = sub("\\.[[:alnum:]]{3}", "", basename(filePath))
+
+    ## Create a data frame and return
+    return(data.frame(filePath, fileName))
+
+}
 
 splashLogo <- function() {
 cat("\t\t\t\t\t    __                  \n", 
@@ -28,9 +41,26 @@ cat("\t\t\t\t\t    __                  \n",
     sep = "")
 }
 
+videoDuration <- function(filePath) {
+    ## Calls mplayer to determine the duration of the video file at
+    ## filePath and returns the duration in seconds
+
+    ## Grab the video's meta-data using mplayer
+    tmp = system(
+        paste("mplayer -vo null -ao null -identify -frames 0",
+              shQuote(filePath[1]), sep=" "),
+        intern = T, ignore.stderr = T)
+
+    ## Find the duration of the video in the meta-data
+    x = grep("ID_LENGTH.*", tmp, value=T)
+    ## Extract the number of seconds
+    m = regexpr("[[:digit:]]+\\.*[[:digit:]]*$", x)
+    tmp = regmatches(x, m)
+    ## Convert to minutes and return
+    return(round(as.numeric(tmp) / 60, 1))
+}
+
 displayFiles <- function(flist) {
-    ## File names (without full path)
-    fnames = basename(flist)
 
     ## Displays a list of files in pretty fashion
     system("clear")
@@ -40,12 +70,12 @@ displayFiles <- function(flist) {
         sprintf("%s\t%s\n", "Item", "Title"),
         "-------------------------------------",
         "-----------------------------\n", sep="")
-    for (i in 1:length(fnames)) {
-        cat(sprintf("%02d\t%s\n", i, fnames[i]))
+    for (i in 1:length(flist$fileName)) {
+        cat(sprintf("%02d\t%s\n", i, flist$fileName[i]))
     }
 }
 
-handleResp <- function(resp, startIdx, maxFiles) {
+handleResp <- function(d, resp, startIdx, maxFiles) {
     ## Manages user input and calls the appropriate function
 
     ## Initial letter/number of resp determines behavior
@@ -55,9 +85,9 @@ handleResp <- function(resp, startIdx, maxFiles) {
     if (length(grep("[[:digit:]]", initialResp)) == 1) {
         ## Play corresponding video and wait for it to return
         vidChoice = as.numeric(resp) + (startIdx - 1)
-        cat(sprintf("Playing %s...", basename(d[vidChoice])))
+        cat(sprintf("Playing %s...", d$fileName[vidChoice]))
         system(paste("mplayer -really-quiet",
-                     shQuote(d[vidChoice]),
+                     shQuote(d$filePath[vidChoice]),
                      sep=" "),
                wait=T, ignore.stdout = TRUE,
                ignore.stderr = TRUE) 
@@ -91,7 +121,7 @@ fileBrowser <- function(d) {
     startIdx = 1
     ## How many files to display onscreen at once
     maxFiles = 15
-    numVideos = length(d)
+    numVideos = dim(d)[1]
 
     ## Given the number of files per page, what is the total pages of
     ## results possible?
@@ -111,7 +141,7 @@ fileBrowser <- function(d) {
         }
         
         ## Display the current page of results
-        displayFiles(d[startIdx:endIdx])
+        displayFiles(d[startIdx:endIdx,])
 
         ## Get user input with custom prompt
         cat(sprintf("\nItem # to play\t\t\t\t Page %d/%d\n",
@@ -126,7 +156,7 @@ fileBrowser <- function(d) {
         cat(">> ")
         
         resp = readLines(file("stdin"), 1)
-        newStartIdx = handleResp(resp, startIdx, maxFiles)
+        newStartIdx = handleResp(d, resp, startIdx, maxFiles)
 
         ## If handleResp returned zero, the user has asked to quit.
         if (newStartIdx == 0) {
@@ -143,17 +173,13 @@ fileBrowser <- function(d) {
 
 } 
 
-## ## Print file names
-## displayFiles(fnames)
+## Auto-run below here
 
-## ## Get user response
-## cat("Which video: ")
-## resp = as.numeric(readLines(file("stdin"), 1))
-
-## ## Play corresponding video asynchronously
-## system(paste("mplayer", shQuote(d[resp]), sep=" "), wait=F)
-
+## Find videos files recursively within root directory
+d = getFileData(root)
+## Start the file browser
 fileBrowser(d)
+## We're done... clear the terminal and exit
 system("clear")
 
 ## End of file m
