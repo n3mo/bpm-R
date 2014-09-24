@@ -35,7 +35,7 @@ getFileData <- function(root) {
     idx = order(fileName)
 
     ## Create a data frame and return
-    return(data.frame(filePath[idx], fileName[idx]))
+    return(data.frame(filePath = filePath[idx], fileName = fileName[idx]))
 
 }
 
@@ -47,13 +47,15 @@ trashFiles <- function(flist) {
     ## system. However, if you have two copies of the same video in
     ## different formats (e.g., .avi and .mkv), they will both be
     ## deleted by this!
+
+    videoRegex = ".+\\.flv$|mov$|mp4$|wmv$|mkv$|mov$|avi$|mpg$|swf$"
     
     for (currFile in flist) {
 
         ## Directory for current file
         fileDir = dirname(currFile)
         ## File name of current file
-        fileName = basename(currFile)
+        fileName = sub("\\.[[:alnum:]]{3}", "", basename(currFile))
 
         ## File all files in the current directory with the same name
         ## (but different extension)
@@ -63,12 +65,17 @@ trashFiles <- function(flist) {
 
         ## Don't include the current file for deletion, which would be
         ## found by the above regexp
-        myFiles = setdiff(myFiles, currFile)
+        myFiles = setdiff(myFiles, file.path(fileDir,
+            basename(currFile))) 
 
         ## Don't delete video files with the same name (if the user
         ## has multiple copies of the same video in different formats,
         ## we don't want to delete those copies)
+        idx = grep(videoRegex, myFiles)
         
+        ## This removes videos files from our vector (so that they do
+        ## NOT get deleted)
+        myFiles = myFiles[-idx]
 
     }
 }
