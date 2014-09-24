@@ -26,9 +26,51 @@ getFileData <- function(root) {
     ## File names (with path or extension)
     fileName = sub("\\.[[:alnum:]]{3}", "", basename(filePath))
 
-    ## Create a data frame and return
-    return(data.frame(filePath, fileName))
+    ## By default, files are returned in the order in which the
+    ## directory was traversed. This means that the original directory
+    ## name rather than the file name determines how it is
+    ## sorted. Here, we instead sort alphabetically by file *name*
+    ## instead and use this new permutation when creating our data
+    ## frame below
+    idx = order(fileName)
 
+    ## Create a data frame and return
+    return(data.frame(filePath[idx], fileName[idx]))
+
+}
+
+trashFiles <- function(flist) {
+    ## Deletes (moves to trash) files contained in flist. In addition,
+    ## if trashSimilar == TRUE, files with the same name but different
+    ## extensions are deleted as well! This takes care of subtitle
+    ## files, etc. that would otherwise accumulate on the
+    ## system. However, if you have two copies of the same video in
+    ## different formats (e.g., .avi and .mkv), they will both be
+    ## deleted by this!
+    
+    for (currFile in flist) {
+
+        ## Directory for current file
+        fileDir = dirname(currFile)
+        ## File name of current file
+        fileName = basename(currFile)
+
+        ## File all files in the current directory with the same name
+        ## (but different extension)
+        myFiles = list.files(fileDir,
+            paste("^", fileName, "\\.[[:alnum:]]{3}", sep=""),
+            full.names=TRUE)
+
+        ## Don't include the current file for deletion, which would be
+        ## found by the above regexp
+        myFiles = setdiff(myFiles, currFile)
+
+        ## Don't delete video files with the same name (if the user
+        ## has multiple copies of the same video in different formats,
+        ## we don't want to delete those copies)
+        
+
+    }
 }
 
 splashLogo <- function() {
