@@ -48,7 +48,13 @@ trashFiles <- function(flist) {
     ## different formats (e.g., .avi and .mkv), they will both be
     ## deleted by this!
 
+    ## Regular expression that matches video files ending with
+    ## supported file extensions
     videoRegex = ".+\\.flv$|mov$|mp4$|wmv$|mkv$|mov$|avi$|mpg$|swf$"
+
+    ## Location of trash directory on the current system
+    ## TODO: make this not hardwired
+    trashPath = "~/.local/share/Trash/files"
     
     for (currFile in flist) {
 
@@ -56,12 +62,21 @@ trashFiles <- function(flist) {
         fileDir = dirname(currFile)
         ## File name of current file
         fileName = sub("\\.[[:alnum:]]{3}", "", basename(currFile))
+        
+        ## This is annoying, but if the file has () in it, they must
+        ## be escaped to avoid the grouping behavior of parentheses in
+        ## regexps
+        quotedFileName = gsub("\\(", "\\\\(", fileName)
+        ## Same goes for .
+        quotedFileName = gsub("\\.", "\\\\.", quotedFileName)
+
+        ## We construct a regular expression that matches files with
+        ## the same file name but different extensions
+        fileRegex = paste("^", quotedFileName, "\\.[[:alnum:]]{3}$", sep="")
 
         ## File all files in the current directory with the same name
         ## (but different extension)
-        myFiles = list.files(fileDir,
-            paste("^", fileName, "\\.[[:alnum:]]{3}", sep=""),
-            full.names=TRUE)
+        myFiles = list.files(fileDir, fileRegex, full.names=TRUE) 
 
         ## Don't include the current file for deletion, which would be
         ## found by the above regexp
@@ -75,8 +90,15 @@ trashFiles <- function(flist) {
         
         ## This removes videos files from our vector (so that they do
         ## NOT get deleted)
-        myFiles = myFiles[-idx]
+        if (length(idx) > 0) {myFiles = myFiles[-idx]}
 
+        ## Add the original file to the deletion list
+        myFiles = c(myFiles, currFile)
+
+        ## We're finally ready for deleting files associated with
+        ## currFile as well as currFile itself. Now we delete them
+        ## (actually, we move them to the trash)
+        file.rename(myFiles, file.path(trashPath, basename(myFiles)))
     }
 }
 
