@@ -181,6 +181,7 @@ handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
                 return(startIdx)
             }
 
+            ## TODO: use switch instead of if/else
             ## The user could have asked to see the next page of videos
             if (tolower(initialResp) == "n") {
                 ## Return index of the next page of results
@@ -194,6 +195,10 @@ handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
             } else if (tolower(initialResp) == "t") {
                 ## Return to the top page of results
                 return(1)
+            } else if (tolower(initialResp) == "d") {
+                ## Switch to deletion mode
+                deleteMode(d, resp)
+                return(startIdx)
             } else {
                 ## The response is illegal. If it didn't cause an
                 ## error, we just return the current state of things
@@ -205,6 +210,29 @@ handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
             cat('Unknown Command!\n')
         })
     return(startIdx)
+}
+
+deleteMode <- function(d, resp) {
+    ## Resp contains the user's input. If you've made it here, the
+    ## first character in response is "d", followed by 1 or more
+    ## numbers separated by spaces
+
+    ## Drop the "d", and keep the remaining number(s) as indexes
+    idx = as.numeric(unlist(strsplit(resp, " "))[-1])
+
+    ## Isolate the corresponding files and cue them for deletion
+    deletionPaths = d$filePath[idx]
+    deletionNames = d$fileName[idx]
+
+    ## Clear the screen
+    system("clear")
+
+    for (i in 1:length(deletionPaths)) {
+        cat(sprintf("Deleting %s...\n", deletionNames[i]))
+    }
+
+    cat("Press Enter to continue...")
+    readLines(file("stdin"), 1)
 }
 
 fileBrowser <- function(d) {
