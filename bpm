@@ -192,13 +192,23 @@ handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
             } else if (tolower(initialResp) == "q") {
                 ## The user wants to quit
                 return(0)
+
             } else if (tolower(initialResp) == "t") {
                 ## Return to the top page of results
                 return(1)
             } else if (tolower(initialResp) == "d") {
                 ## Switch to deletion mode
-                deleteMode(d, resp)
-                return(startIdx)
+                tmp = deleteMode(d, resp, startIdx, maxFiles, maxItem)
+                if (tmp == 1) {
+                    ## Something was deleted... refresh the file list
+                    return(-1)
+                } else {
+                    return(startIdx)
+                }
+            } else if (tolower(initialResp) == "r") {
+                ## The user wants the file list to refresh due to
+                ## changes on disk
+                return(-1)
             } else {
                 ## The response is illegal. If it didn't cause an
                 ## error, we just return the current state of things
@@ -212,7 +222,7 @@ handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
     return(startIdx)
 }
 
-deleteMode <- function(d, resp) {
+deleteMode <- function(d, resp, startIdx, maxFiles, maxItem) {
     ## Resp contains the user's input. If you've made it here, the
     ## first character in response is "d", followed by 1 or more
     ## numbers separated by spaces
@@ -220,25 +230,65 @@ deleteMode <- function(d, resp) {
     ## Drop the "d", and keep the remaining number(s) as indexes
     idx = as.numeric(unlist(strsplit(resp, " "))[-1])
 
+    ## Error checking. Don't allow user to delete files not present on
+    ## the current page of results
+    if (min(idx) <1 | max(idx) > maxItem) {
+        ## Do nothing... the user has asked for an illegal
+        ## item number
+        return(0)
+    } 
+
+    ## Account for current page of results so that the proper data
+    ## file is trashed
+    idx = idx + (startIdx - 1)
+
     ## Isolate the corresponding files and cue them for deletion
     deletionPaths = d$filePath[idx]
     deletionNames = d$fileName[idx]
-
+    N_items = length(deletionNames)
+    
     ## Clear the screen
     system("clear")
 
-    for (i in 1:length(deletionPaths)) {
-        cat(sprintf("Deleting %s...\n", deletionNames[i]))
+    splashLogo()
+    
+    cat("----------------------------------",
+        "--------------------------------\n",
+        "Files to trash\n",
+        "----------------------------------",
+        "--------------------------------\n", sep="")
+    
+    for (i in 1:N_items) {
+        cat(sprintf("%s...\n", deletionNames[i]))
     }
+    ## Pad the screen so the user experience isn't affected by a
+    ## suddenly small screen
+    cat(paste(rep("\n", (maxFiles - N_items - 1)), collapse=""))
+    
+    cat("\nAccessory files (subtitle files, etc.) will also be trashed\n",
+         "\nTrash files? [y]es or [n]o\n>> ", sep="")
+    resp = readLines(file("stdin"), 1)
 
-    cat("Press Enter to continue...")
-    readLines(file("stdin"), 1)
+    if (tolower(resp) == "y") {
+        trashFiles(deletionPaths)
+        cat("Trashed... Press Enter to continue")
+        readLines(file("stdin"), 1)
+        return(1)
+    } else {
+        cat("Aborted... Press Enter to continue")
+        readLines(file("stdin"), 1)
+        return(0)
+    }
 }
 
-fileBrowser <- function(d) {
+fileBrowser <- function(root) {
     ## Controls how many files are displayed at a time, and acts as a
     ## dispatcher for different functionality, including the playback
     ## and deletion of videos.
+
+    ## Find videos files recursively within root directory
+    d = getFileData(root)
+
     browsep = TRUE
     ## The starting video index in the browser window. This is used to
     ## display a subset of a very long list of videos
@@ -298,6 +348,14 @@ fileBrowser <- function(d) {
         if (newStartIdx < numVideos) {
             startIdx = newStartIdx
         }
+
+        ## If the index is -1, a refresh has been requested (either by
+        ## the user or by another function such as deleteMode)
+        if (newStartIdx == -1) {
+            d = getFileData(root)
+            numVideos = dim(d)[1]
+            startIdx = 1
+        } 
             
     }
     ## We're done
@@ -306,10 +364,8 @@ fileBrowser <- function(d) {
 
 ## Auto-run below here
 
-## Find videos files recursively within root directory
-d = getFileData(root)
 ## Start the file browser
-fileBrowser(d)
+fileBrowser(root)
 ## We're done... clear the terminal and exit
 system("clear")
 
