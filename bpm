@@ -1,6 +1,6 @@
 #! /usr/bin/env Rscript
 
-currVer = "v0.1.3"
+currVer = "v1.0.0"
 
 ## Parse command line arguments if present
 args = commandArgs(TRUE)
@@ -131,14 +131,15 @@ videoDuration <- function(filePath) {
     return(round(as.numeric(tmp) / 60, 1))
 }
 
-displayFiles <- function(flist) {
-
+displayFiles <- function(flist, numVideos) {
     ## Displays a list of files in pretty fashion
+    
     system("clear")
     splashLogo()
     cat("-------------------------------------",
         "-----------------------------\n",
-        sprintf("%s\t%s\n", "Item", "Title"),
+        sprintf("%s\t%s\t\t\t\t\t\t(%d Files)\n", "Item",
+                "Title", numVideos), 
         "-------------------------------------",
         "-----------------------------\n", sep="")
     for (i in 1:length(flist$fileName)) {
@@ -315,7 +316,7 @@ fileBrowser <- function(root) {
         }
         
         ## Display the current page of results
-        displayFiles(d[startIdx:endIdx,])
+        displayFiles(d[startIdx:endIdx,], numVideos)
         ## For the current page, maxItem is the maximum allowable item
         ## number response
         maxItem = dim(d[startIdx:endIdx,])[1]
