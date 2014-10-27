@@ -1,6 +1,19 @@
 #! /usr/bin/env Rscript
 
-currVer = "v1.0.0"
+currVer = "v1.0.1"
+
+## Colored output settings
+UI_frame_color = "yellow"
+command_color = "yellow"
+file_colors = c("light red", "light magenta")
+splash_color = "light green"
+splash_delete_color = "red"
+
+## For clean printing, file names are trimmed when too long. File
+## names are trimmed to the following value, and have three periods
+## (ellipses) added to the name, making the final name
+## (max_name_length + 3) characters long
+max_name_length = 63
 
 ## Parse command line arguments if present
 args = commandArgs(TRUE)
@@ -10,6 +23,34 @@ if (is.na(args[1])) {
 } else {
     root = args[1]
 }
+
+ccat <- function(color, ptext, ...) {
+
+  colorCode = switch(tolower(color),
+    black = 30,
+    red = 31,
+    green = 32,
+    yellow = 33,
+    blue = 34,
+    magenta = 35,
+    cyan = 36,
+    "light gray" = 37,
+    "dark gray" = 90,
+    "light red" = 91,
+    "light green" = 92,
+    "light yellow" = 93,
+    "light blue" = 94,
+    "light magenta" = 95,
+    "light cyan" = 96,
+    white = 97,
+    39) # Default foreground color for current terminal
+
+  ## Set color
+  colorFormat = sprintf("\033[%dm", colorCode)
+
+  ftext = paste(colorFormat, ptext, "\033[0m", sep="")
+  cat(ftext, ...)
+} ## End of function ccat
 
 getFileData <- function(root) {
     ## Recursively search root directory for video files and return a
@@ -35,7 +76,9 @@ getFileData <- function(root) {
     idx = order(fileName)
 
     ## Create a data frame and return
-    return(data.frame(filePath = filePath[idx], fileName = fileName[idx]))
+    return(data.frame(filePath = filePath[idx], fileName =
+                      fileName[idx],
+                      stringsAsFactors = FALSE))
 
 }
 
@@ -102,14 +145,15 @@ trashFiles <- function(flist) {
     }
 }
 
-splashLogo <- function() {
-cat("\t\t\t\t\t    __                  \n", 
-    "\t\t\t\t\t   / /_  ____  ____ ___ \n", 
-    "\t\t\t\t\t  / __ \\/ __ \\/ __ `__ \\\n", 
-    "\t\t\t\t\t / /_/ / /_/ / / / / / /\n", 
-    "\t\t\t\t\t/_.___/ .___/_/ /_/ /_/ \n", 
-    sprintf("\t\t\t\t\t     /_/           %s\n", currVer),
-    sep = "")
+splashLogo <- function(color="green") {
+ccat(color = color, c(
+       "\t\t\t\t\t    __                  \n", 
+       "\t\t\t\t\t   / /_  ____  ____ ___ \n", 
+       "\t\t\t\t\t  / __ \\/ __ \\/ __ `__ \\\n", 
+       "\t\t\t\t\t / /_/ / /_/ / / / / / /\n", 
+       "\t\t\t\t\t/_.___/ .___/_/ /_/ /_/ \n", 
+       sprintf("\t\t\t\t\t     /_/           %s\n", currVer)),
+     sep = "")
 }
 
 videoDuration <- function(filePath) {
@@ -135,16 +179,29 @@ displayFiles <- function(flist, numVideos) {
     ## Displays a list of files in pretty fashion
     
     system("clear")
-    splashLogo()
-    cat("-------------------------------------",
-        "-----------------------------\n",
-        sprintf("%s\t%s\t\t\t\t\t\t(%d Files)\n", "Item",
+    splashLogo(splash_color)
+    ccat(color = UI_frame_color,
+        c(#"-------------------------------------",
+          #"-----------------------------\n",
+          "\n",
+          sprintf("%s\t%s\t\t\t\t\t\t(%d Files)\n", "Item",
                 "Title", numVideos), 
-        "-------------------------------------",
-        "-----------------------------\n", sep="")
+          "-------------------------------------",
+          "-----------------------------\n"), sep="")
+
     for (i in 1:length(flist$fileName)) {
-        cat(sprintf("%02d\t%s\n", i, flist$fileName[i]))
-    }
+      ## Trim file name if it is too long to display nicely in tabular
+      ## form
+      fname = flist$fileName[i]
+      if (nchar(fname) > max_name_length) {
+        fname = paste(strtrim(fname, max_name_length),
+          "...", sep="") 
+      }
+      
+      ## Alternate color presentation
+      ccat(color = file_colors[i %% 2 + 1],
+           sprintf("%d\t%s\n", i, fname))
+      }
 }
 
 handleResp <- function(d, resp, startIdx, maxFiles, maxItem) {
@@ -251,26 +308,29 @@ deleteMode <- function(d, resp, startIdx, maxFiles, maxItem) {
     ## Clear the screen
     system("clear")
 
-    splashLogo()
+    splashLogo(splash_delete_color)
     
-    cat("----------------------------------",
-        "--------------------------------\n",
-        "Files to trash\n",
-        "----------------------------------",
-        "--------------------------------\n", sep="")
+    ccat(color = UI_frame_color,
+         c(#"----------------------------------",
+           #"--------------------------------\n",
+           "\n",
+           "Files to trash\n",
+           "----------------------------------",
+           "--------------------------------\n"), sep="")
     
     for (i in 1:N_items) {
-        cat(sprintf("%s...\n", deletionNames[i]))
+      ccat(color = "light red", sprintf("%s...\n", deletionNames[i]))
     }
     ## Pad the screen so the user experience isn't affected by a
     ## suddenly small screen
     cat(paste(rep("\n", (maxFiles - N_items - 1)), collapse=""))
     
-    cat("\nAccessory files (subtitle files, etc.) will also be trashed\n",
-         "\nTrash files? [y]es or [n]o\n>> ", sep="")
+    ccat(color= UI_frame_color,
+         c("\nAccessory files (subtitle files, etc.) will also be trashed\n",
+           "\nTrash files? [Y]es or [n]o\n>>", sep=""))
     resp = readLines(file("stdin"), 1)
 
-    if (tolower(resp) == "y") {
+    if (resp == "Y") {
         trashFiles(deletionPaths)
         cat("Trashed... Press Enter to continue")
         readLines(file("stdin"), 1)
@@ -326,16 +386,17 @@ fileBrowser <- function(root) {
         cat(paste(rep("\n", (maxFiles - maxItem)), collapse=""))
 
         ## Get user input with custom prompt
-        cat(sprintf("\nItem # to play\t\t\t\t\t\t Page %d/%d\n",
-                    currPage, maxPage))
+        ccat(color = command_color,
+             sprintf("\nItem # to play\t\t\t\t\t\t Page %d/%d\n", 
+                     currPage, maxPage))
         if (endIdx < numVideos & startIdx > 1) {
-            cat("[n]ext or [p]revious page\n")
+          ccat(color = command_color, "[n]ext or [p]revious page\n")
         } else if (endIdx < numVideos) {
-            cat("[n]ext page\n")
+          ccat(color = command_color, "[n]ext page\n")
         } else if (startIdx > 1) {
-            cat("[p]revious page\n")
+          ccat(color = command_color, "[p]revious page\n")
         } 
-        cat(">> ")
+        ccat(color = command_color, ">> ")
         
         resp = readLines(file("stdin"), 1)
         newStartIdx = handleResp(d, resp, startIdx, maxFiles, maxItem) 
