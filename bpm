@@ -3,9 +3,9 @@
 currVer = "v1.0.1"
 
 ## Colored output settings
-UI_frame_color = "yellow"
-command_color = "yellow"
-file_colors = c("light red", "light magenta")
+UI_frame_color = "light yellow"
+command_color = "light yellow"
+file_colors = c("cyan", "light red")
 splash_color = "light green"
 splash_delete_color = "red"
 
