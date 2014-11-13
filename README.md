@@ -39,6 +39,12 @@ For the following commands, you only need to type the first letter of the comman
 
 bpm requires that R is installed on your computer. R is available for all major operating systems, and installs easily. Installation instructions can be found at [The R Project for Statistical Computing](http://www.r-project.org/).
 
+On Ubuntu (and similar OSes), you can install R from the command line:
+
+```sh
+sudo apt-get install r-base
+```
+
 #### mplayer
 
 bpm uses mplayer for video playback. Installation instructions can be found at [The Movie Player website](http://www.mplayerhq.hu).
