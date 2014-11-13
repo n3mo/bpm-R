@@ -5,7 +5,7 @@ Browse, Play, and Manage video files
 
 `bpm` provides a fast and simple command line interface for managing video files. By pointing bpm at a directory on your computer, bpm recursively searches for any video files located within the file system. Files are presented in a colored tabular format to allow you to easily see what videos you have available.
 
-Playback can be initiated for any file very easily by entering the number of the video file of interest. `bpm` also provides a simple interface for trashing video files. When trashing a video file, bpm will check in the same directory for any files with the same file name but with a different extension. These files are also moved to the trash. This allows bpm to keep your file system clean by automatically removing supplementary files such as subtitles, screen shots, sample videos, etc.
+Playback can be initiated for any file very easily by entering the number of the video file of interest. `bpm` also provides a simple interface for trashing video files. When trashing a video file, bpm will check in the same directory for any files with the same file name but with a different extension. These files are also moved to the trash. This allows bpm to keep your file system clean by automatically removing supplementary files such as subtitles, screen shots, meta data files, etc.
 
 ## Usage
 
