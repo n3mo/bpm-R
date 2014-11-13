@@ -48,3 +48,23 @@ If you're using a common linux distribution (e.g., Ubuntu), you can probably ins
 ```sh
 sudo apt-get install mplayer
 ```
+
+### Install bpm
+
+The easiest way to install bpm is with git. From the command line:
+
+```sh
+git clone https://github.com/n3mo/bpm.git
+chmod +x ~/path/to/bpm/bpm
+```
+You can then start bpm with
+
+```sh
+~/path/to/bpm/bpm
+```
+
+Alternatively, you can add a link to the bpm script somewhere on your $PATH to allow bpm to be launched from anywhere. This makes it easy to run bpm on the current directory:
+
+```sh
+bpm .
+```
